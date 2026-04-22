@@ -1,0 +1,22 @@
+name: "Vérification des règles"
+on: [push]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    name: "Vérification du respect des normes"
+    steps:
+      - uses: actions/checkout@v6
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.14.3'
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - run: cp team_strategy.py .github/clean/
+      - name: Test with unittset
+        run: pytest -v tests.py
+        working-directory: .github/clean
+      - name: Check types
+        run: ty check
+        working-directory: .github/clean
