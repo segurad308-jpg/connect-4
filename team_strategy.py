@@ -16,9 +16,11 @@ sache quand s'arreter quand elle peut pas gagner (elle peut pas aligner 4 pions 
 - Stocker les empty_cells dans un cache pour ne pas devoir les recalculer a chaque fois et gagner du temps
 """
 
-def find_succession(num_tokens: int, tokens: list[Token]) -> Token | None:
+def find_succession(num_tokens: int, tokens: list[Token | None]) -> Token | None:
     windows = (tokens[i:i + num_tokens] for i in range(0, len(tokens) - num_tokens + 1))
     for win in windows:
+        if None in win:
+            continue
         for tok in [Token.RED, Token.YELLOW]:
             if win.count(tok) == num_tokens:
                 return tok
@@ -26,16 +28,19 @@ def find_succession(num_tokens: int, tokens: list[Token]) -> Token | None:
 
 def check_winner(board: Board, req_len: int) -> Token | None:
     for l in board.lines():
-        if find_succession(req_len, l) is not None:
-            return find_succession(req_len, l)
+        res = find_succession(req_len, l)
+        if res is not None:
+            return res
 
     for c in board.columns():
-        if find_succession(req_len, c) is not None:
-            return find_succession(req_len, c)
+        res = find_succession(req_len, c)
+        if res is not None:
+            return res
 
     for d in board.diagonals():
-        if find_succession(req_len, d) is not None:
-            return find_succession(req_len, d)
+        res = find_succession(req_len, d)
+        if res is not None:
+            return res
 
     return None
 
