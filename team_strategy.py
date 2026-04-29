@@ -5,9 +5,11 @@ from game_objects import *
 # Votre code ici
 
 """
-1. Minimax + alpha beta (objectif: gagner du temps)
+1. Minimax + alpha beta (objectif: gagner du temps) : Done
 2. Move ordering (cibler les meilleurs coups par defaut. Ex: le centre est mieux)
 3. Bonne heuristique (Encore trouver les meilleurs critères)
+Pour l'instant le centre rapporte un meilleur score car il est important sauf que il faut que l'IA
+sache quand s'arreter quand elle peut pas gagner (elle peut pas aligner 4 pions parce que pas la place)
 4. Transposition table (Enregistrer les coups déjà calculés pour avoir plus de temps pour les nouveaux)
 5. Avoir un coup prêt pour la fin de la limite de temps mais toujours chercher le meilleur.
 
@@ -57,15 +59,29 @@ class TeamStrategy(Strategy):
     def copy_board(self, board: Board):
         return copy.deepcopy(board)
 
-    # x = col, y = row
-    def minimax(self, board: Board, depth, max_player):
+    def center_cols(self, board: Board):
         cols = self.get_playable_cols(board)
+        return sorted(cols, key=lambda c: abs(c - board.width//2))
+
+    def evaluate(self, board: Board, my_color: Token):
+        score = 0
+
+        center_col = board.width//2
+        center_col_array = board.column(center_col)
+        score += center_col_array.count(my_color) * 3
+
+        return score
+
+
+    # x = col, y = row
+    def minimax(self, board: Board, depth, max_player, alpha, beta):
+        cols = self.center_cols(board)
 
         if self._my_color == Token.RED:
             p1 = self._my_color
             p2 = Token.YELLOW
         else:
-            p1 = Token.YELLOW
+            p1 = self._my_color
             p2 = Token.RED
 
         winner = check_winner(board, 4)
@@ -76,16 +92,23 @@ class TeamStrategy(Strategy):
         elif len(cols) == 0:
             return 0
 
-        if depth >= 4:
-            return 0
+        if depth >= 6:
+            return self.evaluate(board, p1)
 
         if max_player:
             best_score = -inf
             for col in cols:
                 sim = self.copy_board(board)
                 sim.play(col, p1)
-                score = self.minimax(sim, depth + 1, False)
+
+                score = self.minimax(sim, depth + 1, False, alpha, beta)
+
                 best_score = max(score, best_score)
+                alpha = max(alpha, best_score)
+
+                if alpha >= beta: # pruning
+                    break
+
             return best_score
 
         else:
@@ -93,21 +116,27 @@ class TeamStrategy(Strategy):
             for col in cols:
                 sim_board = copy.deepcopy(board)
                 sim_board.play(col, p2)
-                score = self.minimax(sim_board, depth + 1, True)
+
+                score = self.minimax(sim_board, depth + 1, True, alpha, beta)
+
                 best_score = min(score, best_score)
+                beta = min(beta, best_score)
+
+                if alpha >= beta:
+                    break
+
             return best_score
 
 
     def find_best_move(self, board: Board):
-        self.empty_cells = []
-        cols = self.get_playable_cols(board)
+        cols = self.center_cols(board)
 
         best_score = -inf
         best_move = None
         for col in cols:
             sim = self.copy_board(board)
             sim.play(col, self._my_color)
-            score = self.minimax(sim, 0, False)
+            score = self.minimax(sim, 0, False, -inf, +inf)
             if score > best_score:
                 best_score = score
                 best_move = col
