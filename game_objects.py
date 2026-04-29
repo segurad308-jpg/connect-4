@@ -18,19 +18,6 @@ class Token(Enum):
     def token_display(self):
         return self.__token_display
 
-class Strategy(ABC):
-    def __init__(self, color: Token):
-        self._my_color = color
-
-    @property
-    @abstractmethod
-    def name(self) -> str:
-        pass
-
-    @abstractmethod
-    def play(self, board: Board) -> int:
-        pass
-
 class IllegalMove(Exception):
     pass
 
@@ -93,3 +80,16 @@ class Board:
         except ValueError:
             raise IllegalMove("Column is already full")
         self.__board[drop_height][column_index] = token
+
+class Strategy(ABC):
+    def __init__(self, color: Token):
+        self._my_color = color
+
+    @property
+    @abstractmethod
+    def name(self) -> str:
+        pass
+
+    @abstractmethod
+    def play(self, board: Board) -> int:
+        pass
