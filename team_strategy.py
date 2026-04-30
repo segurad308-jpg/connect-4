@@ -1,6 +1,6 @@
 from cmath import inf
 import copy
-import typing
+from typing import *
 from game_objects import *
 
 # Votre code ici
