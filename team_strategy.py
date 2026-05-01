@@ -19,7 +19,7 @@ sache quand s'arreter quand elle peut pas gagner (elle peut pas aligner 4 pions 
 """
 
 
-def check_direction(board: Board, row: int, col: int, dr: int, dc: int, token: Token) -> bool:
+def check_direction(board: Board, row: int, col: int, dr: int, dc: int, req_len: int, token: Token) -> bool:
     count = 1
 
     r = row + dr
@@ -38,27 +38,27 @@ def check_direction(board: Board, row: int, col: int, dr: int, dc: int, token: T
         r -= dr
         c -= dc
 
-    return count >= 4
+    return count >= req_len
 
-def check_winner(board: Board, row: int, col: int) -> Token | None:
+def check_winner(board: Board, row: int, col: int, req_len: int) -> Token | None:
     token = board.box(row, col)
     if token is None:
         return None
 
     # barre horizontale
-    if check_direction(board, row, col, 0, 1, token):
+    if check_direction(board, row, col, 0, 1, req_len, token):
         return token
 
     # barre verticale
-    if check_direction(board, row, col, 1, 0, token):
+    if check_direction(board, row, col, 1, 0, req_len, token):
         return token
 
     # diagonale 1
-    if check_direction(board, row, col, 1,1, token):
+    if check_direction(board, row, col, 1,1, req_len, token):
         return token
 
     # diagonale 2
-    if check_direction(board, row, col, 1, -1, token):
+    if check_direction(board, row, col, 1, -1, req_len, token):
         return token
 
     return None
@@ -88,7 +88,11 @@ class TeamStrategy(Strategy):
                 cols.append(col)
         return cols
 
-    def move_ordering(self, board: Board, p2: Token) -> List[int]:
+    def center_cols(self, board: Board) -> List[int]:
+        cols = self.get_playable_cols(board)
+        return sorted(cols, key=lambda c: abs(c - board.width // 2))
+
+    def move_ordering(self, board: Board, p2: Token) -> List[int]: # better move ordering but too heavy to be used rn
         cols_weight = {}
         cols = self.get_playable_cols(board)
         for col in cols:
@@ -97,22 +101,36 @@ class TeamStrategy(Strategy):
 
             # simulate to see if this col is a winner
             board.play(col, self._my_color)
-            winner = check_winner(board, row, col)
+            winner = check_winner(board, row, col, 4)
             if winner == self._my_color:
-                weight = max(100, weight)
+                weight = max(inf, weight)
             board._Board__board[row][col] = None
 
             # simulate to see if I have to block this col
             board.play(col, p2)
-            winner = check_winner(board, row, col)
+            winner = check_winner(board, row, col, 4)
             if winner == p2:
-                weight = max(40, weight)
+                weight = max(100, weight)
+            board._Board__board[row][col] = None
+
+            # 2 in a row for my token
+            board.play(col, self._my_color)
+            winner = check_winner(board, row, col, 3)
+            if winner == self._my_color:
+                weight = max(50, weight)
+            board._Board__board[row][col] = None
+
+            # 2 in a row for opps token
+            board.play(col, p2)
+            winner = check_winner(board, row, col, 3)
+            if winner == p2:
+                weight = max(30, weight)
             board._Board__board[row][col] = None
 
             # bonus to center cols
             max_dist = board.width // 2
             dist = abs(col - max_dist)
-            weight += ((max_dist - dist) * 3)
+            weight += ((max_dist - dist) * 5)
 
             cols_weight[col] = weight
 
@@ -124,21 +142,57 @@ class TeamStrategy(Strategy):
         row = column.index(None)
         return row
 
-    @staticmethod
-    def evaluate(board: Board, my_color: Token) -> int:
+    def evaluate_window(self, window: list, p2: Token):
+        mc = window.count(self._my_color)
+        oc = window.count(p2)
+        e = window.count(None)
+
+        if oc == 0:
+            if mc == 3 and e == 1:
+                return 50
+            elif mc == 2 and e == 2:
+                return 20
+            else:
+                return 5
+        elif mc == 0:
+            if oc == 3 and e == 1:
+                return -80
+            elif oc == 2 and e == 2:
+                return -20
+            else:
+                return -5
+
+        return 0
+
+    def evaluate(self, board: Board, p2: Token) -> int:
         score = 0
+
+        for l in board.lines():
+            for i in range(0, board.width-3):
+                window = l[i:i+4]
+                score += self.evaluate_window(window, p2)
+
+        for c in board.columns():
+            for i in range(0, board.height-3):
+                window = c[i:i+4]
+                score += self.evaluate_window(window, p2)
+
+        for d in board.diagonals():
+            for i in range(0, len(d)-3):
+                window = d[i:i+4]
+                score += self.evaluate_window(window, p2)
 
         center_col = board.width//2
         center_col_array = board.column(center_col)
-        score += center_col_array.count(my_color) * 3 # more weight to center cols
+        score += center_col_array.count(self._my_color) * 3 # more weight to center cols
 
         return score
 
-    def minimax(self, board: Board, row, col, depth: int, is_max_player: bool, p2, alpha, beta):
-        cols = self.move_ordering(board, p2)
+    def minimax(self, board: Board, depth: int, is_max_player: bool, p2: Token, alpha: float, beta: float) -> int:
+        cols = self.center_cols(board)
 
         if depth >= 6:
-            return self.evaluate(board, self._my_color)
+            return self.evaluate(board, p2)
 
         if is_max_player:
             best_score = -inf
@@ -146,15 +200,12 @@ class TeamStrategy(Strategy):
                 row = self.get_play_token(board, col) # determine the played row
 
                 board.play(col, self._my_color) # play the move
-                winner = check_winner(board, row, col)
+                winner = check_winner(board, row, col, 4)
                 if winner == self._my_color:
                     board._Board__board[row][col] = None
                     return 1
-                elif winner is not None:
-                    board._Board__board[row][col] = None
-                    return -1
 
-                score = self.minimax(board, row, col, depth + 1, False, p2, alpha, beta) # recurse until it reach the leafs
+                score = self.minimax(board, depth + 1, False, p2, alpha, beta) # recurse until it reach the leafs
 
                 board._Board__board[row][col] = None # undo the move
 
@@ -171,8 +222,12 @@ class TeamStrategy(Strategy):
                 row = self.get_play_token(board, col) # determine the played row
 
                 board.play(col, p2) # play the move
+                winner = check_winner(board, row, col, 4)
+                if winner == p2:
+                    board._Board__board[row][col] = None
+                    return -1
 
-                score = self.minimax(board, row, col, depth + 1, True, p2, alpha, beta) # recurse until it reach the leafs
+                score = self.minimax(board, depth + 1, True, p2, alpha, beta) # recurse until it reach the leafs
 
                 board._Board__board[row][col] = None  # undo the move
 
@@ -184,24 +239,44 @@ class TeamStrategy(Strategy):
             return best_score
 
 
-    def find_best_move(self, board: Board):
+    def find_best_move(self, board: Board) -> int:
         p2 = self.p2_color()
         cols = self.move_ordering(board, p2)
         best_score = -inf
         best_move = None
 
-        for col in cols:
+        for col in cols: # check if i can instant win
             row = self.get_play_token(board, col)  # determine the played row
-
             board.play(col, self._my_color) # play the move
 
-            score = self.minimax(board, row, col, 0, False, p2, -inf, +inf) # do the minimax function
+            if check_winner(board, row, col, 4) == self._my_color:
+                board._Board__board[row][col] = None
+                return col
+
+            board._Board__board[row][col] = None
+
+        for col in cols: # check if i can block opps winner move
+            row = self.get_play_token(board, col)  # determine the played row
+            board.play(col, p2)  # play the move
+
+            if check_winner(board, row, col, 4) == p2:
+                board._Board__board[row][col] = None
+                return col
+
+            board._Board__board[row][col] = None
+
+        for col in cols: # minimax part
+            row = self.get_play_token(board, col)  # determine the played row
+            board.play(col, self._my_color) # play the move
+
+            score = self.minimax(board, 0, False, p2, -inf, +inf)  # do the minimax function
 
             board._Board__board[row][col] = None  # undo the move
 
             if score > best_score:
                 best_score = score
                 best_move = col
+
         return best_move
 
 
