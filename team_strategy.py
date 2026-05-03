@@ -82,8 +82,8 @@ def check_winner(board: Board, row: int, col: int, req_len: int) -> Token | None
 
 class TeamStrategy(Strategy):
 
-    def __init__(self, token: Token):
-        super().__init__(token)
+    def __init__(self, color: Token):
+        super().__init__(color)
         self.deadline = None
         self.zobrist = init_table()
         self.transposition_table = {}  # {clé zobrist : (score, depth)}
