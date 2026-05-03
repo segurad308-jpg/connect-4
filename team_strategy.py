@@ -1,6 +1,6 @@
 from cmath import inf
 import time
-from typing import *
+from typing import List
 from game_objects import *
 import random
 
@@ -16,24 +16,24 @@ import random
 5. Avoir un coup prêt pour la fin de la limite de temps mais toujours chercher le meilleur. : Done
 """
 
-def random_int():
+def random_int() -> int:
     return random.getrandbits(64)
 
-def init_table():
+def init_table() -> List:
     zobrist_table = [[[random_int() for _ in range(2)] for _ in range(7)] for _ in range(6)] # 2 token, 6 height, 7 width
     return zobrist_table
 
-def findhash(board: Board, zobrist_table):
+def index_piece(board: Board, row: int, col: int) -> int:
+    return 0 if board.box(row, col) == Token.YELLOW else 1
+
+def findhash(board: Board, zobrist_table: list) -> int:
     hash_value = 0
     for r in range(board.height):
         for c in range(board.width):
             if board.box(r, c) is not None:
-                piece = 0 if board.box(r, c) == Token.YELLOW else 1
+                piece = index_piece(board, r, c)
                 hash_value ^= zobrist_table[r][c][piece]
     return hash_value
-
-def index_piece(board: Board, row: int, col: int) -> int:
-    return 0 if board.box(row, col) == Token.YELLOW else 1
 
 def check_direction(board: Board, row: int, col: int, dr: int, dc: int, req_len: int, token: Token) -> bool:
     count = 1
@@ -110,53 +110,38 @@ class TeamStrategy(Strategy):
                 cols.append(col)
         return cols
 
-    def center_cols(self, board: Board) -> List[int]:
-        cols = self.get_playable_cols(board)
-        return sorted(cols, key=lambda c: abs(c - board.width // 2))
+    def move_ordering(self, board: Board, p2: Token) -> List[int]:
+        blocks = []
+        good = []
+        rest = []
 
-    def move_ordering(self, board: Board, p2: Token) -> List[int]: # better move ordering but too heavy to be used rn
-        cols_weight = {}
-        cols = self.get_playable_cols(board)
-        for col in cols:
-            weight = 0
+        for col in self.get_playable_cols(board):
             row = self.get_play_token(board, col)
 
-            # simulate to see if this col is a winner
-            board.play(col, self._my_color)
-            winner = check_winner(board, row, col, 4)
-            if winner == self._my_color:
-                weight = max(inf, weight)
+            # instant win
+            board._Board__board[row][col] = self._my_color
+            if check_winner(board, row, col, 4) == self._my_color:
+                board._Board__board[row][col] = None
+                return [col]
             board._Board__board[row][col] = None
 
-            # simulate to see if I have to block this col
-            board.play(col, p2)
-            winner = check_winner(board, row, col, 4)
-            if winner == p2:
-                weight = max(100, weight)
+            # block opps
+            board._Board__board[row][col] = p2
+            if check_winner(board, row, col, 4) == p2:
+                board._Board__board[row][col] = None
+                blocks.append(col)
+                continue
             board._Board__board[row][col] = None
 
-            # 2 in a row for my token
-            board.play(col, self._my_color)
-            winner = check_winner(board, row, col, 3)
-            if winner == self._my_color:
-                weight = max(50, weight)
-            board._Board__board[row][col] = None
-
-            # 2 in a row for opps token
-            board.play(col, p2)
-            winner = check_winner(board, row, col, 3)
-            if winner == p2:
-                weight = max(30, weight)
-            board._Board__board[row][col] = None
-
-            # bonus to center cols
+            # center cols
             max_dist = board.width // 2
             dist = abs(col - max_dist)
-            weight += ((max_dist - dist) * 5)
+            if dist <= 1:
+                good.append(col)
+            else:
+                rest.append(col)
 
-            cols_weight[col] = weight
-
-        return sorted(cols, key=lambda c: cols_weight[c], reverse=True)
+        return blocks + good + rest
 
     @staticmethod
     def get_play_token(board: Board, col: int) -> int:
@@ -190,17 +175,17 @@ class TeamStrategy(Strategy):
         score = 0
 
         for l in board.lines():
-            for i in range(0, board.width-3):
+            for i in range(board.width-2):
                 window = l[i:i+4]
                 score += self.evaluate_window(window, p2)
 
         for c in board.columns():
-            for i in range(0, board.height-3):
+            for i in range(board.height-3):
                 window = c[i:i+4]
                 score += self.evaluate_window(window, p2)
 
         for d in board.diagonals():
-            for i in range(0, len(d)-3):
+            for i in range(len(d)-3):
                 window = d[i:i+4]
                 score += self.evaluate_window(window, p2)
 
@@ -214,11 +199,7 @@ class TeamStrategy(Strategy):
         if time.time() >= self.deadline:
             raise TimeoutError
 
-        if depth >= 2:
-            cols = self.move_ordering(board, p2)
-        else:
-            cols = self.center_cols(board)
-
+        cols = self.move_ordering(board, p2)
         if not cols:
             return self.evaluate(board, p2)
         if depth == 0:
@@ -234,7 +215,7 @@ class TeamStrategy(Strategy):
             for col in cols:
                 row = self.get_play_token(board, col) # determine the played row
 
-                board.play(col, self._my_color) # play the move
+                board._Board__board[row][col] = self._my_color # play the move
                 try:
                     winner = check_winner(board, row, col, 4)
                     if winner == self._my_color:
@@ -261,7 +242,7 @@ class TeamStrategy(Strategy):
             for col in cols:
                 row = self.get_play_token(board, col) # determine the played row
 
-                board.play(col, p2) # play the move
+                board._Board__board[row][col] = p2 # play the move
                 try:
                     winner = check_winner(board, row, col, 4)
                     if winner == p2:
@@ -282,7 +263,7 @@ class TeamStrategy(Strategy):
             self.transposition_table[current_hash] = (best_score, depth)
             return best_score
 
-    def search_depth(self, board: Board, depth: int, current_hash) -> int:
+    def search_depth(self, board: Board, depth: int, current_hash: int) -> int:
         best_score = -inf
         p2 = self.p2_color()
         score = None
@@ -291,7 +272,7 @@ class TeamStrategy(Strategy):
 
         for col in cols: # check if i can instant win or block opps win
             row = self.get_play_token(board, col)  # determine the played row
-            board.play(col, self._my_color) # play the move
+            board._Board__board[row][col] = self._my_color # play the move
 
             try:
                 if check_winner(board, row, col, 4) == self._my_color:
@@ -300,7 +281,7 @@ class TeamStrategy(Strategy):
                 board._Board__board[row][col] = None
 
             row = self.get_play_token(board, col)
-            board.play(col, p2)  # play the move
+            board._Board__board[row][col] = p2  # play the move
 
             try:
                 if check_winner(board, row, col, 4) == p2:
@@ -311,7 +292,7 @@ class TeamStrategy(Strategy):
         timeout = False
         for col in cols: # minimax part
             row = self.get_play_token(board, col)  # determine the played row
-            board.play(col, self._my_color) # play the move
+            board._Board__board[row][col] = self._my_color # play the move
 
             try:
                 # generer un hash du board actuel
