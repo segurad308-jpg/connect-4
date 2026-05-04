@@ -263,7 +263,7 @@ class TeamStrategy(Strategy):
             self.transposition_table[current_hash] = (best_score, depth)
             return best_score
 
-    def search_depth(self, board: Board, depth: int, current_hash: int) -> int | float:
+    def search_depth(self, board: Board, depth: int, current_hash: int) -> int:
         best_score = -inf
         p2 = self.p2_color()
         score = None
@@ -316,10 +316,10 @@ class TeamStrategy(Strategy):
 
         return best_move
 
-    def find_best_move(self, board: Board) -> None | int:
+    def find_best_move(self, board: Board) -> int:
         self.deadline = time.time() + 0.999
         depth = 1
-        best_move = None
+        best_move = self.get_playable_cols(board)[0] # coup de secours
         # hash du board
         current_hash = findhash(board, self.zobrist)
 
