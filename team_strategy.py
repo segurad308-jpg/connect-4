@@ -84,7 +84,7 @@ class TeamStrategy(Strategy):
 
     def __init__(self, color: Token):
         super().__init__(color)
-        self.deadline = None
+        self.deadline = 0.0
         self.zobrist = init_table()
         self.transposition_table = {}  # {clé zobrist : (score, depth)}
 
@@ -195,7 +195,7 @@ class TeamStrategy(Strategy):
 
         return score
 
-    def minimax(self, board: Board, depth: int, is_max_player: bool, p2: Token, alpha: float, beta: float, current_hash: int) -> int:
+    def minimax(self, board: Board, depth: int, is_max_player: bool, p2: Token, alpha: float, beta: float, current_hash: int) -> float:
         if time.time() >= self.deadline:
             raise TimeoutError
 
@@ -263,7 +263,7 @@ class TeamStrategy(Strategy):
             self.transposition_table[current_hash] = (best_score, depth)
             return best_score
 
-    def search_depth(self, board: Board, depth: int, current_hash: int) -> int:
+    def search_depth(self, board: Board, depth: int, current_hash: int) -> int | float:
         best_score = -inf
         p2 = self.p2_color()
         score = None
@@ -316,7 +316,7 @@ class TeamStrategy(Strategy):
 
         return best_move
 
-    def find_best_move(self, board: Board) -> int:
+    def find_best_move(self, board: Board) -> None | int:
         self.deadline = time.time() + 0.999
         depth = 1
         best_move = None
