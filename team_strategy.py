@@ -99,6 +99,10 @@ class TeamStrategy(Strategy):
             return Token.RED
 
     @staticmethod
+    def play_sim(board: Board, row: int, col: int, player: Token):
+        board._Board__board[row][col] = player
+
+    @staticmethod
     def undo(board: Board, row: int, col: int):
         board._Board__board[row][col] = None
 
@@ -123,14 +127,14 @@ class TeamStrategy(Strategy):
             row = self.get_play_token(board, col)
 
             # instant win
-            board._Board__board[row][col] = self._my_color
+            self.play_sim(board, row, col, self._my_color)
             if check_winner(board, row, col, 4) == self._my_color:
                 self.undo(board, row, col)
                 return [col]
             self.undo(board, row, col)
 
             # block opps
-            board._Board__board[row][col] = p2
+            self.play_sim(board, row, col, p2)
             if check_winner(board, row, col, 4) == p2:
                 self.undo(board, row, col)
                 blocks.append(col)
@@ -219,7 +223,7 @@ class TeamStrategy(Strategy):
             for col in cols:
                 row = self.get_play_token(board, col) # determine the played row
 
-                board._Board__board[row][col] = self._my_color # play the move
+                self.play_sim(board, row, col, self._my_color) # play the move
                 try:
                     winner = check_winner(board, row, col, 4)
                     if winner == self._my_color:
@@ -246,7 +250,7 @@ class TeamStrategy(Strategy):
             for col in cols:
                 row = self.get_play_token(board, col) # determine the played row
 
-                board._Board__board[row][col] = p2 # play the move
+                self.play_sim(board, row, col, p2) # play the move
                 try:
                     winner = check_winner(board, row, col, 4)
                     if winner == p2:
@@ -276,7 +280,7 @@ class TeamStrategy(Strategy):
 
         for col in cols: # check if i can instant win or block opps win
             row = self.get_play_token(board, col)  # determine the played row
-            board._Board__board[row][col] = self._my_color # play the move
+            self.play_sim(board, row, col, self._my_color) # play the move
 
             try:
                 if check_winner(board, row, col, 4) == self._my_color:
@@ -285,7 +289,7 @@ class TeamStrategy(Strategy):
                 self.undo(board, row, col)
 
             row = self.get_play_token(board, col)
-            board._Board__board[row][col] = p2  # play the move
+            self.play_sim(board, row, col, p2)  # play the move
 
             try:
                 if check_winner(board, row, col, 4) == p2:
@@ -296,7 +300,7 @@ class TeamStrategy(Strategy):
         timeout = False
         for col in cols: # minimax part
             row = self.get_play_token(board, col)  # determine the played row
-            board._Board__board[row][col] = self._my_color # play the move
+            self.play_sim(board, row, col, self._my_color) # play the move
 
             try:
                 # generer un hash du board actuel
