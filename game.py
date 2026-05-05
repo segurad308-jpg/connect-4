@@ -97,7 +97,7 @@ def play_game(s1: Strategy, s2: Strategy, height=6, width=7):
     tour = 1
 
     while True:
-        for player in [s1, s2]:
+        for player in [s2, s1]:
             start = 0
             if player == s2:
                 start = dt.datetime.now()

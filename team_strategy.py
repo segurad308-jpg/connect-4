@@ -99,6 +99,10 @@ class TeamStrategy(Strategy):
             return Token.RED
 
     @staticmethod
+    def undo(board: Board, row: int, col: int):
+        board._Board__board[row][col] = None
+
+    @staticmethod
     def is_empty_col(board: Board, col: int) -> bool:
         row = board.height - 1
         return board.box(row, col) is None
@@ -121,17 +125,17 @@ class TeamStrategy(Strategy):
             # instant win
             board._Board__board[row][col] = self._my_color
             if check_winner(board, row, col, 4) == self._my_color:
-                board._Board__board[row][col] = None
+                self.undo(board, row, col)
                 return [col]
-            board._Board__board[row][col] = None
+            self.undo(board, row, col)
 
             # block opps
             board._Board__board[row][col] = p2
             if check_winner(board, row, col, 4) == p2:
-                board._Board__board[row][col] = None
+                self.undo(board, row, col)
                 blocks.append(col)
                 continue
-            board._Board__board[row][col] = None
+            self.undo(board, row, col)
 
             # center cols
             max_dist = board.width // 2
@@ -227,7 +231,7 @@ class TeamStrategy(Strategy):
 
                     score = self.minimax(board, depth - 1, False, p2, alpha, beta, new_hash) # recurse until it reach the leafs
                 finally:
-                    board._Board__board[row][col] = None # undo the move
+                    self.undo(board, row, col) # undo the move
 
                 best_score = max(score, best_score)
                 alpha = max(alpha, best_score)
@@ -253,7 +257,7 @@ class TeamStrategy(Strategy):
 
                     score = self.minimax(board, depth - 1, True, p2, alpha, beta, new_hash) # recurse until it reach the leafs
                 finally:
-                    board._Board__board[row][col] = None  # undo the move
+                    self.undo(board, row, col)  # undo the move
 
                 best_score = min(score, best_score)
                 beta = min(beta, best_score)
@@ -278,7 +282,7 @@ class TeamStrategy(Strategy):
                 if check_winner(board, row, col, 4) == self._my_color:
                     return col
             finally:
-                board._Board__board[row][col] = None
+                self.undo(board, row, col)
 
             row = self.get_play_token(board, col)
             board._Board__board[row][col] = p2  # play the move
@@ -287,7 +291,7 @@ class TeamStrategy(Strategy):
                 if check_winner(board, row, col, 4) == p2:
                     return col
             finally:
-                board._Board__board[row][col] = None
+                self.undo(board, row, col)
 
         timeout = False
         for col in cols: # minimax part
@@ -304,7 +308,7 @@ class TeamStrategy(Strategy):
                 timeout = True
                 break
             finally:
-                board._Board__board[row][col] = None  # undo the move
+                self.undo(board, row, col)  # undo the move
 
             if score is not None:
                 if score > best_score:
