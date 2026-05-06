@@ -1,6 +1,7 @@
 from game_objects import *
 from team_strategy import *
 from random_strategy import *
+from mariusnico import *
 import datetime as dt
 
 # meilleur print du board pour mieux voir (fait par chatgpt mais va etre supprimé au moment du rendu)
@@ -97,17 +98,21 @@ def play_game(s1: Strategy, s2: Strategy, height=6, width=7):
     tour = 1
 
     while True:
-        for player in [s2, s1]:
-            start = 0
-            if player == s2:
-                start = dt.datetime.now()
+        for player in [s1, s2]:
+            d = 0
 
-            p = player.play(b1)
+            start = dt.datetime.now()
 
+            if player == s1:
+                p = player.play(b1)
+            else:
+                p, d = player.play(b1)
+
+            end = dt.datetime.now()
+            time_f = (end - start).total_seconds()
+            print(f"Temps pour trouver un coup: {time_f}")
             if player == s2:
-                end = dt.datetime.now()
-                time = (end - start).total_seconds()
-                print(f"Temps pour trouver un coup: {time}")
+                print(f"Depth: {d}")
 
             print(f"{player.name} : colonne {p + 1}")
             b1.play(p, player._my_color)

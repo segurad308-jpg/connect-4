@@ -16,17 +16,22 @@ import random
 5. Avoir un coup prêt pour la fin de la limite de temps mais toujours chercher le meilleur. : Done
 """
 
+"""
+Les 4 fonction suivante, random_int(), init_table(), index_piece() et findhash(), servent à générer une table
+de hashage Zobrist ainsi que accéder à la valeur en hash Zobrist du Board actuel pour ensuite pouvoir 
+l'utiliser comme clé dans la transposition table.
+"""
 def random_int() -> int:
     return random.getrandbits(64)
 
-def init_table() -> List:
-    zobrist_table = [[[random_int() for _ in range(2)] for _ in range(7)] for _ in range(6)] # 2 token, 6 height, 7 width
+def init_table() -> List: # genere la table de valeur
+    zobrist_table = [[[random_int() for _ in range(2)] for _ in range(7)] for _ in range(6)] # 2 token, 7 width, 6 height
     return zobrist_table
 
 def index_piece(board: Board, row: int, col: int) -> int:
     return 0 if board.box(row, col) == Token.YELLOW else 1
 
-def findhash(board: Board, zobrist_table: list) -> int:
+def findhash(board: Board, zobrist_table: list) -> int: # permet de retrouver le hash du board actuel
     hash_value = 0
     for r in range(board.height):
         for c in range(board.width):
@@ -35,6 +40,7 @@ def findhash(board: Board, zobrist_table: list) -> int:
                 hash_value ^= zobrist_table[r][c][piece]
     return hash_value
 
+# regarde le nombre de token que le joueur a aligné sur le dernier coup joué
 def check_direction(board: Board, row: int, col: int, dr: int, dc: int, req_len: int, token: Token) -> bool:
     count = 1
 
@@ -98,6 +104,15 @@ class TeamStrategy(Strategy):
         else:
             return Token.RED
 
+    """
+    Pour les 2 méthodes qui suivent, je décide délibérément de ne pas respecter la contrainte imposée par
+    python, c'est-à-dire, que je m'autorise à accéder à un attribut privé sans être dans la classe même.
+    Je choisis d'utiliser ce "hack" car il me fait gagner énormément de temps et de performance comparé à
+    si j'utilisait la fonction générique copy.deepcopy. De plus il s'agit en réalité pas un hack à proprement parlé mais
+    plutôt du name mangling officiel et documenté du langage python.
+    Si on compare uniquement la copie du Board.__board avec ma fonction play_sim() ou undo(), on est sur du O(42) vs O(1).
+    En sachant que cela concerne uniquement la copie du Board.__board et pas le reste.
+    """
     @staticmethod
     def play_sim(board: Board, row: int, col: int, player: Token):
         board._Board__board[row][col] = player
@@ -118,6 +133,7 @@ class TeamStrategy(Strategy):
                 cols.append(col)
         return cols
 
+    # organise les colonnes en fonction de leur importance
     def move_ordering(self, board: Board, p2: Token) -> List[int]:
         blocks = []
         good = []
@@ -126,7 +142,7 @@ class TeamStrategy(Strategy):
         for col in self.get_playable_cols(board):
             row = self.get_play_token(board, col)
 
-            # instant win
+            # instant win no need to look further
             self.play_sim(board, row, col, self._my_color)
             if check_winner(board, row, col, 4) == self._my_color:
                 self.undo(board, row, col)
@@ -157,6 +173,7 @@ class TeamStrategy(Strategy):
         row = column.index(None)
         return row
 
+    # dans une window len de 4 on definit la valeur de cette window (valeurs relatives mais logiques entre elles)
     def evaluate_window(self, window: list, p2: Token):
         mc = window.count(self._my_color)
         oc = window.count(p2)
@@ -179,6 +196,7 @@ class TeamStrategy(Strategy):
 
         return 0
 
+    # on evalue par window parce que on gagne dans une fenetre de 4 et non sur tout le plateau
     def evaluate(self, board: Board, p2: Token) -> int:
         score = 0
 
@@ -193,6 +211,8 @@ class TeamStrategy(Strategy):
                 score += self.evaluate_window(window, p2)
 
         for d in board.diagonals():
+            if len(d) < 4:
+                continue
             for i in range(len(d)-3):
                 window = d[i:i+4]
                 score += self.evaluate_window(window, p2)
@@ -203,11 +223,13 @@ class TeamStrategy(Strategy):
 
         return score
 
+    # fonction principale du projet. Inclu une fonction de alpha beta pruning
     def minimax(self, board: Board, depth: int, is_max_player: bool, p2: Token, alpha: float, beta: float, current_hash: int) -> float:
-        if time.time() >= self.deadline:
+        if time.time() >= self.deadline: # si plus de temps on fait remonter une TimeoutError
             raise TimeoutError
 
         cols = self.move_ordering(board, p2)
+
         if not cols:
             return self.evaluate(board, p2)
         if depth == 0:
@@ -220,6 +242,7 @@ class TeamStrategy(Strategy):
 
         if is_max_player:
             best_score = -inf
+            first_move = True
             for col in cols:
                 row = self.get_play_token(board, col) # determine the played row
 
@@ -233,7 +256,15 @@ class TeamStrategy(Strategy):
                     piece = index_piece(board, row, col)  # generer un hash du board actuel
                     new_hash = current_hash ^ self.zobrist[row][col][piece]
 
-                    score = self.minimax(board, depth - 1, False, p2, alpha, beta, new_hash) # recurse until it reach the leafs
+                    if first_move:
+                        score = self.minimax(board, depth - 1, False, p2, alpha, beta, new_hash) # recurse until it reach the leafs
+                        first_move = False
+                    else:
+                        # on cherche dans une fenetre nulle et si le score est est plus grand que prevu on fait une recherche sur tout
+                        # en gros cest le concepte PVC (Principal Variation Search)
+                        score = self.minimax(board, depth - 1, False, p2, alpha, alpha+1, new_hash)
+                        if alpha < score < beta:
+                            score = self.minimax(board, depth - 1, False, p2, alpha, beta, new_hash)
                 finally:
                     self.undo(board, row, col) # undo the move
 
@@ -247,6 +278,7 @@ class TeamStrategy(Strategy):
 
         else:
             best_score = +inf
+            first_move = True
             for col in cols:
                 row = self.get_play_token(board, col) # determine the played row
 
@@ -259,7 +291,14 @@ class TeamStrategy(Strategy):
                     piece = index_piece(board, row, col)  # generer un hash du board actuel
                     new_hash = current_hash ^ self.zobrist[row][col][piece]
 
-                    score = self.minimax(board, depth - 1, True, p2, alpha, beta, new_hash) # recurse until it reach the leafs
+                    if first_move:
+                        score = self.minimax(board, depth - 1, True, p2, alpha, beta, new_hash) # recurse until it reach the leafs
+                        first_move = False
+                    else:
+                        score = self.minimax(board, depth - 1, False, p2, beta-1, beta, new_hash)
+                        if alpha < score < beta:
+                            score = self.minimax(board, depth - 1, True, p2, alpha, beta, new_hash)
+
                 finally:
                     self.undo(board, row, col)  # undo the move
 
@@ -271,6 +310,7 @@ class TeamStrategy(Strategy):
             self.transposition_table[current_hash] = (best_score, depth)
             return best_score
 
+    # check si gagnant potentiel et appelle minimax en iterative deepning
     def search_depth(self, board: Board, depth: int, current_hash: int) -> int:
         best_score = -inf
         p2 = self.p2_color()
@@ -283,7 +323,7 @@ class TeamStrategy(Strategy):
             self.play_sim(board, row, col, self._my_color) # play the move
 
             try:
-                if check_winner(board, row, col, 4) == self._my_color:
+                if check_winner(board, row, col, 4) == self._my_color: # je gagne
                     return col
             finally:
                 self.undo(board, row, col)
@@ -292,7 +332,7 @@ class TeamStrategy(Strategy):
             self.play_sim(board, row, col, p2)  # play the move
 
             try:
-                if check_winner(board, row, col, 4) == p2:
+                if check_winner(board, row, col, 4) == p2: # p2 gagne
                     return col
             finally:
                 self.undo(board, row, col)
@@ -320,11 +360,12 @@ class TeamStrategy(Strategy):
                     best_move = col
 
         if timeout:
-            raise TimeoutError
+            raise TimeoutError # faire remonter le TimeoutError pour pouvoir le catch dans find_best_move
 
         return best_move
 
-    def find_best_move(self, board: Board) -> int:
+    # verifie la deadline et augmente la depth tant qu'il y a du temps
+    def find_best_move(self, board: Board):
         self.deadline = time.time() + 0.999
         depth = 1
         best_move = self.get_playable_cols(board)[0] # coup de secours
@@ -340,7 +381,8 @@ class TeamStrategy(Strategy):
             except TimeoutError:
                 pass
 
-        return best_move
+        return best_move, depth
 
-    def play(self, board: Board) -> int: # int est le num de la colonne
+    def play(self, board: Board): # int est le num de la colonne
+        self.transposition_table = {}
         return self.find_best_move(board)
