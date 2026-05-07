@@ -103,10 +103,8 @@ def play_game(s1: Strategy, s2: Strategy, height=6, width=7):
 
             start = dt.datetime.now()
 
-            if player == s1:
-                p = player.play(b1)
-            else:
-                p, d = player.play(b1)
+            p = player.play(b1)
+
 
             end = dt.datetime.now()
             time_f = (end - start).total_seconds()

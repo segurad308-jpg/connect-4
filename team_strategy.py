@@ -365,7 +365,7 @@ class TeamStrategy(Strategy):
         return best_move
 
     # verifie la deadline et augmente la depth tant qu'il y a du temps
-    def find_best_move(self, board: Board):
+    def find_best_move(self, board: Board) -> int:
         self.deadline = time.time() + 0.999
         depth: int = 1
         best_move: int = self.get_playable_cols(board)[0] # coup de secours
@@ -381,8 +381,8 @@ class TeamStrategy(Strategy):
             except TimeoutError:
                 pass
 
-        return best_move, depth
+        return best_move
 
-    def play(self, board: Board): # int est le num de la colonne
+    def play(self, board: Board) -> int: # int est le num de la colonne
         self.transposition_table = {}
         return self.find_best_move(board)
