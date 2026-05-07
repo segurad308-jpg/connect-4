@@ -165,7 +165,7 @@ class TeamStrategy(Strategy):
             else:
                 rest.append(col)
 
-        return blocks + good + rest
+        return blocks + sorted(good, key=lambda c: abs(c - board.width // 2)) + rest
 
     @staticmethod
     def get_play_token(board: Board, col: int) -> int:
@@ -181,27 +181,27 @@ class TeamStrategy(Strategy):
 
         if oc == 0:
             if mc == 3 and e == 1:
-                return 50
+                return 70
             elif mc == 2 and e == 2:
-                return 20
-            else:
-                return 5
+                return 30
+            elif mc == 1:
+                return 2
         elif mc == 0:
             if oc == 3 and e == 1:
-                return -80
+                return -85
             elif oc == 2 and e == 2:
                 return -20
-            else:
-                return -5
+            elif oc == 1:
+                return -2
 
         return 0
 
     # on evalue par window parce que on gagne dans une fenetre de 4 et non sur tout le plateau
     def evaluate(self, board: Board, p2: Token) -> int:
-        score = 0
+        score: int = 0
 
         for l in board.lines():
-            for i in range(board.width-2):
+            for i in range(board.width-3):
                 window = l[i:i+4]
                 score += self.evaluate_window(window, p2)
 
@@ -219,7 +219,7 @@ class TeamStrategy(Strategy):
 
         center_col = board.width//2
         center_col_array = board.column(center_col)
-        score += center_col_array.count(self._my_color) * 3 # more weight to center cols
+        score += center_col_array.count(self._my_color) * 7 # more weight to center cols
 
         return score
 
@@ -241,7 +241,7 @@ class TeamStrategy(Strategy):
                 return self.transposition_table[current_hash][0]
 
         if is_max_player:
-            best_score = -inf
+            best_score: float = -inf
             first_move = True
             for col in cols:
                 row = self.get_play_token(board, col) # determine the played row
@@ -277,7 +277,7 @@ class TeamStrategy(Strategy):
             return best_score
 
         else:
-            best_score = +inf
+            best_score: float = +inf
             first_move = True
             for col in cols:
                 row = self.get_play_token(board, col) # determine the played row
@@ -295,7 +295,7 @@ class TeamStrategy(Strategy):
                         score = self.minimax(board, depth - 1, True, p2, alpha, beta, new_hash) # recurse until it reach the leafs
                         first_move = False
                     else:
-                        score = self.minimax(board, depth - 1, False, p2, beta-1, beta, new_hash)
+                        score = self.minimax(board, depth - 1, True, p2, beta-1, beta, new_hash)
                         if alpha < score < beta:
                             score = self.minimax(board, depth - 1, True, p2, alpha, beta, new_hash)
 
@@ -312,11 +312,11 @@ class TeamStrategy(Strategy):
 
     # check si gagnant potentiel et appelle minimax en iterative deepning
     def search_depth(self, board: Board, depth: int, current_hash: int) -> int:
-        best_score = -inf
-        p2 = self.p2_color()
-        score = None
-        cols = self.move_ordering(board, p2)
-        best_move = cols[0] # coup de secours
+        best_score: float = -inf
+        p2: Token = self.p2_color()
+        score: float = -inf
+        cols: List[int] = self.move_ordering(board, p2)
+        best_move: int = cols[0] # coup de secours
 
         for col in cols: # check if i can instant win or block opps win
             row = self.get_play_token(board, col)  # determine the played row
@@ -367,8 +367,8 @@ class TeamStrategy(Strategy):
     # verifie la deadline et augmente la depth tant qu'il y a du temps
     def find_best_move(self, board: Board):
         self.deadline = time.time() + 0.999
-        depth = 1
-        best_move = self.get_playable_cols(board)[0] # coup de secours
+        depth: int = 1
+        best_move: int = self.get_playable_cols(board)[0] # coup de secours
         # hash du board
         current_hash = findhash(board, self.zobrist)
 

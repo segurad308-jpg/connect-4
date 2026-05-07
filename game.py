@@ -98,7 +98,7 @@ def play_game(s1: Strategy, s2: Strategy, height=6, width=7):
     tour = 1
 
     while True:
-        for player in [s1, s2]:
+        for player in [s2, s1]:
             d = 0
 
             start = dt.datetime.now()
@@ -133,7 +133,7 @@ def play_game(s1: Strategy, s2: Strategy, height=6, width=7):
             tour += 1
 
 if __name__ == "__main__":
-    play_game(KeyboardStrategy(Token.YELLOW), TeamStrategy(Token.RED), height=6, width=7)
+    play_game(ManiStrategy(Token.YELLOW), TeamStrategy(Token.RED), height=6, width=7)
 
 
 
