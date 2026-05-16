@@ -7,16 +7,6 @@ import random
 # Votre code ici
 
 """
-1. Minimax + alpha beta (objectif: gagner du temps) : Done
-2. Move ordering (cibler les meilleurs coups par defaut. Ex: le centre est mieux) : Done
-3. Bonne heuristique (Encore trouver les meilleurs critères) : Done
-
-4. Transposition table (Enregistrer les coups déjà calculés pour avoir plus de temps pour les nouveaux)
-
-5. Avoir un coup prêt pour la fin de la limite de temps mais toujours chercher le meilleur. : Done
-"""
-
-"""
 Les 4 fonction suivante, random_int(), init_table(), index_piece() et findhash(), servent à générer une table
 de hashage Zobrist ainsi que accéder à la valeur en hash Zobrist du Board actuel pour ensuite pouvoir 
 l'utiliser comme clé dans la transposition table.
@@ -142,14 +132,14 @@ class TeamStrategy(Strategy):
         for col in self.get_playable_cols(board):
             row = self.get_play_token(board, col)
 
-            # instant win no need to look further
+            # instant win pas besoin de regarder plus loin
             self.play_sim(board, row, col, self._my_color)
             if check_winner(board, row, col, 4) == self._my_color:
                 self.undo(board, row, col)
                 return [col]
             self.undo(board, row, col)
 
-            # block opps
+            # bloque adversaire
             self.play_sim(board, row, col, p2)
             if check_winner(board, row, col, 4) == p2:
                 self.undo(board, row, col)
@@ -244,9 +234,9 @@ class TeamStrategy(Strategy):
             best_score: float = -inf
             first_move = True
             for col in cols:
-                row = self.get_play_token(board, col) # determine the played row
+                row = self.get_play_token(board, col) # determine la ligne jouee
 
-                self.play_sim(board, row, col, self._my_color) # play the move
+                self.play_sim(board, row, col, self._my_color) # joue le coup
                 try:
                     winner = check_winner(board, row, col, 4)
                     if winner == self._my_color:
@@ -257,7 +247,7 @@ class TeamStrategy(Strategy):
                     new_hash = current_hash ^ self.zobrist[row][col][piece]
 
                     if first_move:
-                        score = self.minimax(board, depth - 1, False, p2, alpha, beta, new_hash) # recurse until it reach the leafs
+                        score = self.minimax(board, depth - 1, False, p2, alpha, beta, new_hash) # recursive jusqu'aux feuilles
                         first_move = False
                     else:
                         # on cherche dans une fenetre nulle et si le score est est plus grand que prevu on fait une recherche sur tout
@@ -266,11 +256,11 @@ class TeamStrategy(Strategy):
                         if alpha < score < beta:
                             score = self.minimax(board, depth - 1, False, p2, alpha, beta, new_hash)
                 finally:
-                    self.undo(board, row, col) # undo the move
+                    self.undo(board, row, col) # annule le coup joue
 
                 best_score = max(score, best_score)
                 alpha = max(alpha, best_score)
-                if alpha >= beta: # pruning
+                if alpha >= beta: # elagage
                     break
 
             self.transposition_table[current_hash] = (best_score, depth)
@@ -280,9 +270,9 @@ class TeamStrategy(Strategy):
             best_score: float = +inf
             first_move = True
             for col in cols:
-                row = self.get_play_token(board, col) # determine the played row
+                row = self.get_play_token(board, col) # determine la ligne jouee
 
-                self.play_sim(board, row, col, p2) # play the move
+                self.play_sim(board, row, col, p2) # jouer le coup
                 try:
                     winner = check_winner(board, row, col, 4)
                     if winner == p2:
@@ -292,7 +282,7 @@ class TeamStrategy(Strategy):
                     new_hash = current_hash ^ self.zobrist[row][col][piece]
 
                     if first_move:
-                        score = self.minimax(board, depth - 1, True, p2, alpha, beta, new_hash) # recurse until it reach the leafs
+                        score = self.minimax(board, depth - 1, True, p2, alpha, beta, new_hash) # recursive jusqu'aux feuilles
                         first_move = False
                     else:
                         score = self.minimax(board, depth - 1, True, p2, beta-1, beta, new_hash)
@@ -300,11 +290,11 @@ class TeamStrategy(Strategy):
                             score = self.minimax(board, depth - 1, True, p2, alpha, beta, new_hash)
 
                 finally:
-                    self.undo(board, row, col)  # undo the move
+                    self.undo(board, row, col)  # annuler le coup
 
                 best_score = min(score, best_score)
                 beta = min(beta, best_score)
-                if alpha >= beta: # pruning
+                if alpha >= beta: # elagage
                     break
 
             self.transposition_table[current_hash] = (best_score, depth)
@@ -318,9 +308,9 @@ class TeamStrategy(Strategy):
         cols: List[int] = self.move_ordering(board, p2)
         best_move: int = cols[0] # coup de secours
 
-        for col in cols: # check if i can instant win or block opps win
-            row = self.get_play_token(board, col)  # determine the played row
-            self.play_sim(board, row, col, self._my_color) # play the move
+        for col in cols: # regarder si je peux gagner instantanement ou bloquer l'adversaire
+            row = self.get_play_token(board, col)  # determiner la ligne jouee
+            self.play_sim(board, row, col, self._my_color) # jouer le coup
 
             try:
                 if check_winner(board, row, col, 4) == self._my_color: # je gagne
@@ -329,7 +319,7 @@ class TeamStrategy(Strategy):
                 self.undo(board, row, col)
 
             row = self.get_play_token(board, col)
-            self.play_sim(board, row, col, p2)  # play the move
+            self.play_sim(board, row, col, p2)  # jouer le coup
 
             try:
                 if check_winner(board, row, col, 4) == p2: # p2 gagne
@@ -339,20 +329,20 @@ class TeamStrategy(Strategy):
 
         timeout = False
         for col in cols: # minimax part
-            row = self.get_play_token(board, col)  # determine the played row
-            self.play_sim(board, row, col, self._my_color) # play the move
+            row = self.get_play_token(board, col)  # determiner la ligne jouee
+            self.play_sim(board, row, col, self._my_color) # jouer le coup
 
             try:
                 # generer un hash du board actuel
                 piece = index_piece(board, row, col)
                 new_hash = current_hash ^ self.zobrist[row][col][piece]
 
-                score = self.minimax(board, depth, False, p2, -inf, +inf, new_hash)  # do the minimax function
+                score = self.minimax(board, depth, False, p2, -inf, +inf, new_hash)  # fonction minimax
             except TimeoutError: # on catch le timeout error pour pas perdre le coup
                 timeout = True
                 break
             finally:
-                self.undo(board, row, col)  # undo the move
+                self.undo(board, row, col)  # annuler le coup
 
             if score is not None:
                 if score > best_score:
