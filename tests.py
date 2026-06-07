@@ -1,5 +1,5 @@
 import unittest
-from team_strategy import TeamStrategy
+from minimax_strategy import TeamStrategy
 from game_objects import *
 
 class TestStrategy(unittest.TestCase):

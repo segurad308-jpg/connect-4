@@ -1,96 +1,179 @@
-[![Review Assignment Due Date](https://classroom.github.com/assets/deadline-readme-button-22041afd0340ce965d47ae6ef1cefeee28c7c493a6346c4f15d667ab976d596c.svg)](https://classroom.github.com/a/Hjn7TiOl)
-# Programmation 2 - Projet IA
+# Connect 4 AI
 
-## Consignes administratives
+A high-performance Connect Four AI developed in Python. The project implements an advanced game-playing agent capable of analyzing board positions and selecting strong moves within a strict time limit.
 
-Ce projet est à réaliser sur Github, par groupes de deux. Seul le contenu mis en ligne sur Github sera noté.
+## Overview
 
-La date limite est le **13 mai à 12h00**. Nous ne tiendrons pas compte des commits effectués après cette date.
+This AI plays Connect Four autonomously using a combination of:
 
-L'utilisation d'outils d'IA conversationnels type ChatGPT est interdite.
-Vous devrez présenter votre travail aux assistants durant 5 à 10 minutes le jour du rendu, durant la session d'exercice.
-Une heure de passage vous sera communiquée ultérieurement.
+* Minimax search
+* Alpha-Beta Pruning
+* Principal Variation Search (PVS)
+* Iterative Deepening
+* Zobrist Hashing
+* Transposition Tables
+* Move Ordering Heuristics
 
-## Présentation du projet
+The objective is to maximize the AI's chances of winning while efficiently exploring the game tree under a one-second decision limit.
 
-Dans ce projet, qui fait suite à la série notée, votre objectif sera de développer une intelligence artificielle (IA) capable de jouer au jeu Puissance 4.
+---
 
-Votre code devra respecter la spécification donnée pour que nous puissions organiser un tournoi entre les équipes à la fin du projet.
+## Features
 
-### Rappel - le jeu de Puissance 4
+### Minimax Algorithm
 
-Le jeu de Puissance 4 est un jeu pour deux joueurs qui se joue sur une grille de 6 lignes par 7 colonnes posée verticalement sur une table.
-Tour à tour, les joueurs placent un jeton de leur couleur dans une des 7 colonnes dans le but d'aligner 4 jetons de la même couleur sur une même ligne, colonne, ou diagonale.
+The core of the AI is based on the Minimax algorithm, which evaluates future game states by assuming both players make optimal decisions.
 
-Comme la grille est disposée verticalement, les joueurs choisissent simplement dans quelle colonne jouer. Le jeton tombe ensuite dans la case la plus basse de cette colonne et reste en place.
+### Alpha-Beta Pruning
 
-![Insertion d'un jeton en colonne 1](./diagrams/Puissance4-Grid_Insertion.drawio.png)
+Branches that cannot influence the final decision are discarded early, significantly reducing the number of explored positions.
 
-La victoire s'obtient lorsque 4 jetons sont alignés.
+### Principal Variation Search (PVS)
 
-<img src="./diagrams/Puissance4-GridWin.drawio.png" width="500px" alt="Victoire en diagonale du joueur jaune" />
+An optimized version of Alpha-Beta search that performs narrow-window searches to improve performance.
 
-## Éléments fournis
+### Iterative Deepening
 
-Nous vous fournissons quatre classes dans le fichier `game_objects.py`. 
+The AI gradually increases search depth until the available time expires, ensuring that a valid move is always available.
 
-- La classe `Token` représente un jeton dans la grille de Puissance 4. `Token.RED` représente un jeton rouge ; `Token.YELLOW` représente un jeton jaune.
-- La classe `IllegalMove` est une exception lancée par le jeu lorsqu'un coup illégal est joué.
-- La classe `Board` représente une grille de Puissance 4. Elle est caractérisée par ses dimensions (nombre de lignes et de colonnes).
-- La classe abstraite `Strategy`, dont vous devrez hériter pour implémenter votre stratégie de jeu.
+### Zobrist Hashing
 
-En outre, nous fournissons en guise d'exemple une stratégie aléatoire, `RandomStrategy`, implémentée dans le fichier `random_strategy.py`.
+Each board state is assigned a unique hash value, allowing efficient storage and retrieval of previously evaluated positions.
 
-La classe `Board` fournie ressemble à celle de la série notée. Elle propose les méthodes et attributs suivants :
+### Transposition Table
 
-- Attributs `width`, `height` et `to_win`. Décrivent respectivement la largeur (nombre de colonnes) et la hauteur (nombre de lignes) de la grille, ainsi que le nombre de jetons à aligner pour gagner.
-- Méthodes `line(i)` et `column(i)`. Retournent le contenu d'une ligne ou d'une colonne.
-- Méthode `box(l, c)`. Retourne le jeton en ligne `l` et colonne `c`. Référez vous au schéma ci-dessous pour un rappel de la signification de ces coordonnées.
-- Méthodes `lines()`, `columns()` et `diagonals()`. Retournent un itérateur sur toutes les lignes, colonnes, ou diagonales de la grille (respectivement).
-- Méthode `play(column, token)`. Permet de placer un jeton. Attention, **cela modifie la grille de jeu**. Si vous souhaitez simuler un coup, effectuez une _copie_ de l'objet avant d'appeler cette méthode, en utilisant la fonction [`copy.deepcopy`](https://docs.python.org/3/library/copy.html\#copy.deepcopy) fournie dans la bibliothèque standard de Python.
-- La méthode `__repr__` est implémentée de sorte à afficher le plateau de jeu. Vous pouvez donc `print(board)` pour afficher l'état du jeu.
+A cache stores evaluated board positions to avoid redundant computations and speed up the search process.
 
-### Système de coordonnées d'une grille
+### Smart Move Ordering
 
-<img src="./diagrams/Puissance4-Grid_Coordinates.drawio.png" width="700px" alt="Rappel du système de coordonnées " />
+Moves are prioritized according to their strategic importance:
 
-## Votre travail
+1. Immediate winning moves
+2. Blocking opponent winning moves
+3. Center columns
+4. Remaining legal moves
 
-Le but de votre travail est de développer une classe étendant la classe abstraite `Strategy` de sorte qu'elle joue au jeu de manière autonome.
+This greatly improves Alpha-Beta efficiency.
 
-Votre classe **doit** se trouver dans un fichier appelé `team_strategy.py`, et **doit** se nommer `TeamStrategy`.
+---
 
-Vous **devez** implémenter la méthode `name` pour qu'elle retourne le nom de votre équipe, tel que choisi sur GitHub. Si vous êtes seul·e, retournez votre nom d'utilisateur GitHub.
+## Board Evaluation
 
-Le coeur de votre stratégie doit être implémenté dans la méthode `play`. Cette méthode sera appelée par notre moteur de jeu. Elle doit retourner un nombre entier représentant le numéro de colonne dans lequel votre stratégie souhaite jouer.
+The AI evaluates positions by analyzing windows of four cells across:
 
-Vous **pouvez** implémenter des fonctions et méthodes annexes. Cependant, **elles doivent se trouver dans le fichier `team_strategy.py`**. En outre, **il n'est pas possible de modifier les classes fournies (dans `game_objects.py`)**. Seuls les modules fournis dans la bibliothèque standard de Python sont autorisés.
+* Rows
+* Columns
+* Diagonals
 
-Vous êtes libres du choix de la stratégie employée par votre IA. Lors du tournoi, votre joueur déclarera automatiquement forfait si :
+The heuristic rewards:
 
-- Vous mettez plus d'une seconde à jouer ;
-- Vous jouez un coup illégal ;
-- Vous générez une exception.
+* Potential winning alignments
+* Three-in-a-row opportunities
+* Two-in-a-row opportunities
+* Control of the center column
 
-### Tests
+It also penalizes equivalent opportunities for the opponent.
 
-Nous fournissons un fichier de tests (`tests.py`) qui permet de vérifier que votre stratégie implémente notre interface correctement. Ce test est très rudimentaire et s'assure simplement que votre stratégie pourra interfacer avec notre code.
+---
 
-Lorsque ces tests s'exécutent sur GitHub, nous les lançons dans un autre dossier, ce qui permet de s'assurer que votre code n'a pas de dépendances externes (c'est à dire que tout le code requis est contenu dans le fichier `team_strategy.py`).
-Si vos tests échouent sur GitHub, c'est donc possiblement que vous avez modifié des fichiers fournis ou qu'une partie du code nécessaire à votre IA se trouve hors de votre fichier `team_strategy.py`.
+## Performance Optimizations
 
-### Moteur de jeu
+To maximize search depth within the one-second limit, several optimizations are used:
 
-Nous ne fournissons pas de moteur de jeu pour le Puissance 4.
-Nous vous conseillons toutefois d'en implémenter un dans un fichier séparé. 
-Vous pouvez réutiliser une partie du code de la série notée - notez cependant que la classe `Board` est légèrement différente.
-Vous pouvez également réutiliser telle-quelle la stratégie `KeyboardStrategy` que vous avez du implémenter pour la série notée.
+* In-place move simulation
+* Constant-time move undoing
+* Efficient winner detection
+* Cached board evaluations
+* Principal Variation Search
+* Iterative deepening search
 
-## Évaluation
+These optimizations allow the AI to analyze thousands of positions per move.
 
-Votre travail sera noté selon plusieurs critères.
-La fonctionnalité et la qualité de votre code sont primordiales.
-Votre résultat au tournoi comptera comme bonus.
+---
 
-En plus du rendu de code sur GitHub, vous devrez individuellement écrire un paragraphe sur Moodle pour détailler votre contribution individuelle au projet.
-Nous vous demanderons également de venir en groupe durant la session d'exercice le jour du rendu pour expliquer votre code durant 5 à 10 minutes.
+## Project Structure
+
+```text
+team_strategy.py
+│
+├── MinimaxStrategy
+├── Zobrist Hashing Functions
+├── Board Evaluation Functions
+├── Winner Detection
+├── Move Ordering
+├── Alpha-Beta Search
+├── Principal Variation Search
+└── Iterative Deepening
+```
+
+---
+
+## Search Process
+
+```text
+Current Position
+       │
+       ▼
+ Move Ordering
+       │
+       ▼
+ Iterative Deepening
+       │
+       ▼
+ Minimax Search
+       │
+       ▼
+ Alpha-Beta Pruning
+       │
+       ▼
+ Transposition Table Lookup
+       │
+       ▼
+ Position Evaluation
+       │
+       ▼
+ Best Move
+```
+
+---
+
+## Technologies Used
+
+* Python 3
+* Object-Oriented Programming
+* Game Tree Search Algorithms
+* Heuristic Evaluation Functions
+* Hash Tables
+* Time-Constrained Search
+
+---
+
+## How It Works
+
+1. Generate all legal moves.
+2. Check for immediate wins.
+3. Check for necessary defensive moves.
+4. Search future positions using Minimax.
+5. Prune irrelevant branches using Alpha-Beta.
+6. Reuse previously analyzed positions through the Transposition Table.
+7. Continue increasing search depth until the time limit is reached.
+8. Return the best move found.
+
+---
+
+## Future Improvements
+
+Possible enhancements include:
+
+* Better evaluation heuristics
+* Threat-space search
+* Opening book support
+* Endgame databases
+* Parallel search
+* Monte Carlo Tree Search (MCTS) comparison
+
+---
+
+## Authors
+
+Developed as part of a university Artificial Intelligence project focused on creating a competitive Connect Four agent capable of participating in tournaments against other AI strategies.

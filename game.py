@@ -1,7 +1,6 @@
 from game_objects import *
-from team_strategy import *
+from minimax_strategy import *
 from random_strategy import *
-from mariusnico import *
 import time
 
 def find_succession(num_tokens: int, tokens: list[Token]) -> Token | None:
@@ -27,7 +26,6 @@ def check_winner_global(board: Board, req_len: int=4) -> Token | None:
 
     return None
 
-# Votre code ici
 class KeyboardStrategy(Strategy):
 
     def __init__(self, my_color: Token) -> None:
@@ -36,21 +34,21 @@ class KeyboardStrategy(Strategy):
 
     @property
     def name(self) -> str:
-        return f"Joueur {self._my_color.team_name}"
+        return f"Player {self._my_color.team_name}"
 
     def play(self, board: Board) -> int:
         width = board.width
         height = board.height - 1
 
         while True:
-            col = int(input(f"À votre tour, {self.name}. Quelle colonne ?"))
+            col = int(input(f"Your turn, {self.name}. Which column ?"))
             if 1 <= col <= width:
                 if board.line(height)[col-1] is None:
                     break
                 else:
-                    raise IllegalMove("La colonne sélectionnée n'est pas valide !")
+                    raise IllegalMove("The selected column is not valid !")
             else:
-                print("La colonne sélectionnée n'est pas valide !")
+                print("The selected column is not valid !")
 
         return col-1
 
@@ -72,28 +70,28 @@ def play_game(s1: Strategy, s2: Strategy, height=6, width=7):
 
             end = time.time()
             time_f = (end - start)
-            print(f"Temps pour trouver un coup: {time_f}")
+            print(f"Time to find a shot: {time_f}")
 
-            print(f"{player.name} : colonne {p + 1}")
+            print(f"{player.name} : column {p + 1}")
             b1.play(p, player._my_color)
 
             win_or_not = check_winner_global(b1, to_win)
             if win_or_not is not None:
                 print(b1)
-                print(f"Victoire du joueur {player.name}")
+                print(f"Player victory: {player.name}")
                 return
 
             print(b1)
 
         else:
             if tour == plays_to_make:
-                print("Égalité... Personne ne gagne ce coup ci !")
+                print("A tie... No one wins this time. !")
                 break
 
             tour += 1
 
 if __name__ == "__main__":
-    play_game(KeyboardStrategy(Token.YELLOW), TeamStrategy(Token.RED), height=6, width=7)
+    play_game(RandomStrategy(Token.YELLOW), MinimaxStrategy(Token.RED), height=6, width=7)
 
 
 

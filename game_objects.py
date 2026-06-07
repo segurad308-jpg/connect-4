@@ -3,8 +3,8 @@ from enum import Enum
 from typing import Iterable
 
 class Token(Enum):
-    RED = "🔴", "Rouge"
-    YELLOW = "🟨", "Jaune"
+    RED = "🔴", "Red"
+    YELLOW = "🟨", "Yellow"
 
     def __init__(self, *args):
         self.__token_display = args[0]
